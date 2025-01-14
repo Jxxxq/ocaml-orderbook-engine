@@ -1,0 +1,14 @@
+# ocaml build
+_build/
+
+# opam
+_opam/
+
+# vscode
+.vscode/
+
+# merlin config
+.merlin
+
+# dune
+*.install
