@@ -3,6 +3,7 @@ _build/
 
 # opam
 _opam/
+_opam
 
 # vscode
 .vscode/
