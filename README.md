@@ -4,7 +4,7 @@ A high-performance order book implementation in OCaml using Red-Black Binary Sea
 
 ## Features
 
-* Red-Black BST implementation for O(log n) operations which has consistent performance across all operations (e.g. search,insert,delete,etc.)
+* Red-Black BST implementation guarantees O(log n) time with all operations (search, insert, delete)
 * Fast order matching engine optimized for high-frequency trading environments
 * Support for limit and market orders
 * Efficient order cancellation and modification capabilities
