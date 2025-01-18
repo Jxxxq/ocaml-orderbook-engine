@@ -1,2 +1,3 @@
 (test
- (name test_ocaml_orderbook))
+ (name test_ocaml_orderbook)
+ (libraries ocaml_orderbook ounit2))

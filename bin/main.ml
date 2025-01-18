@@ -176,3 +176,39 @@ let sell_tree =
   let t4 = insert_balanced t3 {orderId=9; timestamp=0.0; side=Sell; price=108.0; volume=15} in
   let t5 = insert_balanced t4 {orderId=10; timestamp=0.0; side=Sell; price=107.0; volume=20} in
   t5;;
+
+
+(* Test searching in buy_tree *)
+let test_buy_search_1 = search_price buy_tree 100.0;;  
+let test_buy_search_2 = search_price buy_tree 102.0;;  
+let test_buy_search_3 = search_price buy_tree 99.0;; 
+
+(* Test searching in sell_tree *)
+let test_sell_search_1 = search_price sell_tree 104.0;;
+let test_sell_search_2 = search_price sell_tree 106.0;; 
+let test_sell_search_3 = search_price sell_tree 109.0;;
+
+(* Print results *)
+let print_orders = function
+  | None -> print_endline "No orders found"
+  | Some orders -> 
+      List.iter (fun order -> 
+        Printf.printf "Found order: id=%d, price=%.2f, volume=%d\n" 
+          order.orderId order.price order.volume
+      ) orders;;
+
+print_endline "\nTesting buy tree searches:";
+print_endline "Searching for price 100.0:";
+print_orders test_buy_search_1;
+print_endline "\nSearching for price 102.0:";
+print_orders test_buy_search_2;
+print_endline "\nSearching for price 99.0:";
+print_orders test_buy_search_3;
+
+print_endline "\nTesting sell tree searches:";
+print_endline "Searching for price 104.0:";
+print_orders test_sell_search_1;
+print_endline "\nSearching for price 106.0:";
+print_orders test_sell_search_2;
+print_endline "\nSearching for price 109.0:";
+print_orders test_sell_search_3;

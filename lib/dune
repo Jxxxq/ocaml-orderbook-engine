@@ -1,2 +1,3 @@
 (library
- (name ocaml_orderbook))
+ (name ocaml_orderbook)
+ (public_name ocaml_orderbook))
