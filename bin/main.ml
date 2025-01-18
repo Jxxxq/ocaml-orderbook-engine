@@ -120,6 +120,27 @@ let insert_balanced tree order =
       new_node Black price orders left right  (* Root is always black *)
   | Empty -> Empty
 
+let rec search_price tree target_price =
+  match tree with
+  | Empty -> None
+  | Node {price; orders; left; right; _} ->
+      if target_price = price then Some orders
+      else if target_price < price then search_price left target_price
+      else search_price right target_price
+
+let rec find_best_bid = function
+  | Empty -> None
+  | Node {price; orders; right; _} ->
+      match right with
+      | Empty -> Some (price, orders)
+      | _ -> find_best_bid right
+
+let rec find_best_ask = function
+  | Empty -> None
+  | Node {price; orders; left; _} ->
+      match left with
+      | Empty -> Some (price, orders)  
+      | _ -> find_best_ask left
 
 let rec print_tree_helper indent = function
   | Empty -> Printf.printf "%sEmpty\n" indent
@@ -141,13 +162,17 @@ let print_tree tree =
   print_endline "Tree structure:";
   print_tree_helper "" tree
 
-  let tree = 
-    let t1 = insert_balanced Empty {orderId=1; timestamp=0.0; side=Buy; price=100.0; volume=10} in
-    let t2 = insert_balanced t1 {orderId=2; timestamp=0.0; side=Buy; price=101.0; volume=20} in
-    let t3 = insert_balanced t2 {orderId=3; timestamp=0.0; side=Buy; price=102.0; volume=30} in
-    let t4 = insert_balanced t3 {orderId=4; timestamp=0.0; side=Buy; price=103.0; volume=20} in
-    let t5 = insert_balanced t4 {orderId=5; timestamp=0.0; side=Buy; price=104.0; volume=15} in
-    let t6 = insert_balanced t5 {orderId=6; timestamp=0.0; side=Buy; price=105.0; volume=35} in
-    t6;;
-
-print_tree tree;;
+let buy_tree = 
+  let t1 = insert_balanced Empty {orderId=1; timestamp=0.0; side=Buy; price=100.0; volume=10} in
+  let t2 = insert_balanced t1 {orderId=2; timestamp=0.0; side=Buy; price=102.0; volume=20} in
+  let t3 = insert_balanced t2 {orderId=3; timestamp=0.0; side=Buy; price=98.0; volume=15} in
+  let t4 = insert_balanced t3 {orderId=4; timestamp=0.0; side=Buy; price=103.0; volume=25} in
+  let t5 = insert_balanced t4 {orderId=5; timestamp=0.0; side=Buy; price=101.0; volume=30} in
+  t5;;
+let sell_tree = 
+  let t1 = insert_balanced Empty {orderId=6; timestamp=0.0; side=Sell; price=104.0; volume=12} in
+  let t2 = insert_balanced t1 {orderId=7; timestamp=0.0; side=Sell; price=106.0; volume=18} in
+  let t3 = insert_balanced t2 {orderId=8; timestamp=0.0; side=Sell; price=105.0; volume=22} in
+  let t4 = insert_balanced t3 {orderId=9; timestamp=0.0; side=Sell; price=108.0; volume=15} in
+  let t5 = insert_balanced t4 {orderId=10; timestamp=0.0; side=Sell; price=107.0; volume=20} in
+  t5;;
