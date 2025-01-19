@@ -1,5 +1,7 @@
 [@@@warning "-26-27-32-37-69"]  (* Disables unused variable warnings *)
 
+(* Types *)
+
 type side = Buy | Sell
 
 type order = {
@@ -13,14 +15,16 @@ type order = {
 type color = Red | Black
 
 type order_tree =
-| Empty 
-| Node of {
-  color: color;
-  left: order_tree;
-  orders: order list;
-  price: float;
-  right: order_tree
-}
+  | Empty 
+  | Node of {
+      color: color;
+      left: order_tree;
+      orders: order list;
+      price: float;
+      right: order_tree
+    }
+
+(* Tree Operations *)
 
 let new_node color price orders left right = Node{color;price;orders;left;right}
 
@@ -28,17 +32,8 @@ let combine_orders existing_orders new_order =
   let total_volume = List.fold_left (fun acc order -> acc + order.volume) 0 existing_orders in
   [{new_order with volume = total_volume + new_order.volume}]
   
-let rec insert tree order =
-  match tree with
-  | Empty -> new_node Red order.price [order] Empty Empty
-  | Node {color; left; orders; price; right} ->
-    if order.price < price then 
-      new_node color price orders (insert left order) right
-    else if order.price > price then
-      new_node color price orders left (insert right order)
-    else
-      new_node color price (combine_orders orders order) left right
 
+(* Rotates tree left *)
 let rotate_left = function
   | Node {color; left; orders; price; right = Node {color = Red; left = rleft; orders = rorders; price = rprice; right = rright}} ->
       new_node color rprice rorders 
@@ -46,6 +41,8 @@ let rotate_left = function
         rright
   | _ -> failwith "rotate_left"
 
+
+(* Rotates tree right *)  
 let rotate_right = function
   | Node {color; left = Node {color = Red; left = lleft; orders = lorders; price = lprice; right = lright}; orders; price; right} ->
       new_node color lprice lorders
@@ -53,7 +50,7 @@ let rotate_right = function
         (new_node Red price orders lright right)
   | _ -> failwith "rotate_right"
 
-(** Flips the colors of a node and its children *)
+(* Flips the colors of a node and its children *)
 let flip_colors = function
   | Node {color; left = Node {color = Red; _} as l; orders; price; right = Node {color = Red; _} as r} ->
       new_node Red price orders 
@@ -61,12 +58,13 @@ let flip_colors = function
         (match r with Node n -> new_node Black n.price n.orders n.left n.right | _ -> Empty)
   | _ -> failwith "flip_colors"
 
+(* Just checks to see if a node is red or not *)
 let is_red = function
   | Node {color = Red; _} -> true
   | _ -> false
 
 
-(** ----------- Red-Black tree properties: -----------
+(* ----------- Red-Black tree properties: -----------
     1. Node Color: Each node is either red or black.
     2. Root Property: The root of the tree is always black.
     3. Red Property: Red nodes cannot have red children (no two consecutive red nodes on any path).
@@ -75,7 +73,7 @@ let is_red = function
 *)
 
 
-(** Balances the tree after insertion to maintain Red-Black properties *)
+(* Balances the tree after insertion to maintain the Red-Black properties above *)
 let balance tree =
   match tree with
   | Node {color = Black; left; orders; price; right} as node ->
@@ -107,8 +105,12 @@ let balance tree =
       node
 | node -> node
 
+(* Inserting and then balacing... 
+   FUTURE IMPROVEMENT: Right now its inserting -> balancing -> inserting -> balancing .. so its balancing every do_insert call
+   which is not good. Could be optimized to just insert and then do 1 balance operation which will reduce balance checks and or rotations.
+*)
 let insert_balanced tree order =
-  let rec do_insert = function
+  let rec do_insert = function (* Helper function that does the insertion recursively *)
     | Empty -> new_node Red order.price [order] Empty Empty
     | Node {color; left; orders; price; right} as node ->
         if order.price < price then
@@ -118,11 +120,12 @@ let insert_balanced tree order =
         else
           new_node color price (combine_orders orders order) left right
   in
-  match do_insert tree with
+  match do_insert tree with 
   | Node {left; orders; price; right; _} -> 
       new_node Black price orders left right  (* Root is always black *)
   | Empty -> Empty
 
+(* Returns the node of the given value *)
 let rec search_price tree target_price =
   match tree with
   | Empty -> None
@@ -131,6 +134,7 @@ let rec search_price tree target_price =
       else if target_price < price then search_price left target_price
       else search_price right target_price
 
+(* Finds the highest bid *)
 let rec find_best_bid = function
   | Empty -> None
   | Node {price; orders; right; _} ->
@@ -138,6 +142,7 @@ let rec find_best_bid = function
       | Empty -> Some (price, orders)
       | _ -> find_best_bid right
 
+(* Finds the lowest ask *)
 let rec find_best_ask = function
   | Empty -> None
   | Node {price; orders; left; _} ->
@@ -145,6 +150,7 @@ let rec find_best_ask = function
       | Empty -> Some (price, orders)  
       | _ -> find_best_ask left
 
+(* Recursive helper function *)
 let rec print_tree_helper indent = function
   | Empty -> Printf.printf "%sEmpty\n" indent
   | Node {color; price; orders; left; right} ->
@@ -165,6 +171,11 @@ let print_tree tree =
   print_endline "Tree structure:";
   print_tree_helper "" tree
 
+(** Removes a node with target_price while maintaining the Red-Black tree properties.
+    Uses the standard deletion approach: 
+    - For leaf (doesn't apply)/single child: Direct removal
+    - For two children: Replace with successor (min value in right subtree) (find_min function)
+    Then rebalances the tree*)
 let rec remove_node tree target_price =
   match tree with
   | Empty -> Empty
@@ -193,6 +204,7 @@ let rec execute_buy market_state order =
   match find_best_ask sell_tree with
   | None -> 
       (* No matching sell orders, add to buy tree *)
+      Printf.printf "Added limit order: Buy %d shares at %.2f\n" order.volume order.price;
       (insert_balanced buy_tree order, sell_tree)
   | Some (ask_price, sell_orders) ->
       if order.price >= ask_price then
@@ -205,7 +217,8 @@ let rec execute_buy market_state order =
           (* Instead of remove + insert, directly update the node's orders *)
           let updated_tree = 
             match search_price sell_tree ask_price with
-            | None -> sell_tree  (* shouldn't happen *)
+            | None ->     
+                failwith "Internal error: Price not found in tree after successful match"
             | Some _ -> 
                 let rec update_node tree =
                   match tree with
@@ -236,9 +249,13 @@ let rec execute_buy market_state order =
             (buy_tree, remove_node sell_tree ask_price)
             remaining_order
         end
-      else
+      else begin
         (* Best ask is too high, add to buy tree *)
+        Printf.printf "Added limit order: Buy %d shares at %.2f\n" order.volume order.price;
+
         (insert_balanced buy_tree order, sell_tree)
+      end
+        
 
 (* Execute sell order *)
 let rec execute_sell market_state order =
@@ -246,6 +263,7 @@ let rec execute_sell market_state order =
   match find_best_bid buy_tree with
   | None -> 
       (* No matching buy orders, add to sell tree *)
+      Printf.printf "Added limit order: Sell %d shares at %.2f\n" order.volume order.price;
       (buy_tree, insert_balanced sell_tree order)
   | Some (bid_price, buy_orders) ->
       if order.price <= bid_price then
@@ -258,7 +276,8 @@ let rec execute_sell market_state order =
           (* Instead of remove + insert, directly update the node's orders *)
           let updated_tree = 
             match search_price buy_tree bid_price with
-            | None -> buy_tree  (* shouldn't happen *)
+            | None -> 
+                failwith "Internal error: Price not found in tree after successful match"
             | Some _ -> 
                 let rec update_node tree =
                   match tree with
@@ -289,11 +308,13 @@ let rec execute_sell market_state order =
             (remove_node buy_tree bid_price, sell_tree)
             remaining_order
         end
-      else
+      else begin
         (* Best bid is too low, add to sell tree *)
+        Printf.printf "Added limit order: Sell %d shares at %.2f\n" order.volume order.price;
         (buy_tree, insert_balanced sell_tree order)
+      end 
 
-
+(* Collects all orders from the tree in sorted order by doing an in-order traversal *)
 let rec collect_orders tree =
   match tree with
   | Empty -> []
@@ -301,6 +322,9 @@ let rec collect_orders tree =
       let left_orders = collect_orders left in
       let right_orders = collect_orders right in
       left_orders @ [(price, List.hd orders)] @ right_orders
+
+      
+(* In the future make these unit tests and in a separate file *)
 
 let test_Sell_order = {
   orderId = 12;
@@ -343,7 +367,7 @@ let (final_buy_tree, final_sell_tree) =
 let print_orderbook (buy_tree, sell_tree) =
   let asks = List.rev (collect_orders sell_tree) in
   let bids = List.rev (collect_orders buy_tree) in
-  
+
   print_endline "\nOrderbook:";
   print_endline "----------------------------------------";
   print_endline "Type    Price    Volume";
