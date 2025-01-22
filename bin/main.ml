@@ -105,10 +105,7 @@ let balance tree =
       node
 | node -> node
 
-(* Inserting and then balacing... 
-   FUTURE IMPROVEMENT: Right now its inserting -> balancing -> inserting -> balancing .. so its balancing every do_insert call
-   which is not good. Could be optimized to just insert and then do 1 balance operation which will reduce balance checks and or rotations.
-*)
+(* Inserting while balancing at each layer *)
 let insert_balanced tree order =
   let rec do_insert = function (* Helper function that does the insertion recursively *)
     | Empty -> new_node Red order.price [order] Empty Empty
@@ -323,46 +320,6 @@ let rec collect_orders tree =
       let right_orders = collect_orders right in
       left_orders @ [(price, List.hd orders)] @ right_orders
 
-      
-(* In the future make these unit tests and in a separate file *)
-
-let test_Sell_order = {
-  orderId = 12;
-  timestamp = 0.0;
-  side = Sell;
-  price = 102.0;
-  volume = 30
-};;
-let test_Buy_order = {
-  orderId = 13;
-  timestamp = 0.0;
-  side = Buy;
-  price = 100.0;
-  volume = 10
-};;
-
-
-let buy_tree = 
-  let t1 = insert_balanced Empty {orderId=1; timestamp=0.0; side=Buy; price=100.0; volume=10} in
-  let t2 = insert_balanced t1 {orderId=2; timestamp=0.0; side=Buy; price=102.0; volume=20} in
-  let t3 = insert_balanced t2 {orderId=3; timestamp=0.0; side=Buy; price=98.0; volume=15} in
-  let t4 = insert_balanced t3 {orderId=4; timestamp=0.0; side=Buy; price=103.0; volume=25} in
-  let t5 = insert_balanced t4 {orderId=5; timestamp=0.0; side=Buy; price=101.0; volume=30} in
-  t5;;
-let sell_tree = 
-  let t1 = insert_balanced Empty {orderId=6; timestamp=0.0; side=Sell; price=104.0; volume=12} in
-  let t2 = insert_balanced t1 {orderId=7; timestamp=0.0; side=Sell; price=106.0; volume=18} in
-  let t3 = insert_balanced t2 {orderId=8; timestamp=0.0; side=Sell; price=105.0; volume=22} in
-  let t4 = insert_balanced t3 {orderId=9; timestamp=0.0; side=Sell; price=108.0; volume=15} in
-  let t5 = insert_balanced t4 {orderId=10; timestamp=0.0; side=Sell; price=107.0; volume=20} in
-  let t6 = insert_balanced t5 {orderId=11; timestamp=0.0; side=Sell; price=107.0; volume=20} in
-  t6;;
-
-let (updated_buy_tree, updated_sell_tree) = 
-  execute_sell (buy_tree, sell_tree) test_Sell_order;;
-
-let (final_buy_tree, final_sell_tree) =
-  execute_buy (updated_buy_tree, updated_sell_tree) test_Buy_order;;
 
 let print_orderbook (buy_tree, sell_tree) =
   let asks = List.rev (collect_orders sell_tree) in
@@ -387,8 +344,92 @@ let print_orderbook (buy_tree, sell_tree) =
   
   print_endline "----------------------------------------";;
 
-print_endline "\nInitial orderbook:";;
-print_orderbook (buy_tree, sell_tree);;
+(* Parse float input *)
+let read_float prompt =
+  Printf.printf "%s" prompt;
+  try float_of_string (read_line())
+  with Failure _ -> 
+    Printf.printf "Invalid input. Please enter a valid number.\n";
+    nan
 
-print_endline "\nAfter executing orders:";;
-print_orderbook (final_buy_tree, final_sell_tree);;
+(* Parse integer input *)
+let read_int prompt =
+  Printf.printf "%s" prompt;
+  try int_of_string (read_line())
+  with Failure _ -> 
+    Printf.printf "Invalid input. Please enter a valid number.\n";
+    -1
+
+(* Read yes/no input *)
+let rec interact_with_orderbook market_state order_id =
+  print_endline "\nWhat would you like to do?";
+  print_endline "1. Place Buy order";
+  print_endline "2. Place Sell order";
+  print_endline "3. Remove price level";
+  print_endline "4. View orderbook";
+  print_endline "5. Exit";
+  Printf.printf "> ";
+
+  let choice = read_line() in
+  match choice with
+  | "1" | "2" -> 
+      let price = read_float "Enter price: " in
+      if Float.is_nan price then
+        interact_with_orderbook market_state order_id
+      else
+        let volume = read_int "Enter volume: " in
+        if volume <= 0 then
+          interact_with_orderbook market_state order_id
+        else begin
+          let order = {
+            orderId = order_id;
+            timestamp = 0.0;
+            side = if choice = "1" then Buy else Sell;  
+            price = price;
+            volume = volume
+          } in
+          let new_market_state = 
+            if order.side = Buy then
+              execute_buy market_state order
+            else
+              execute_sell market_state order
+          in
+          print_orderbook new_market_state;
+          interact_with_orderbook new_market_state (order_id + 1)
+        end
+
+  | "3" ->
+      let price = read_float "Enter price to remove: " in
+      if Float.is_nan price then
+        interact_with_orderbook market_state order_id
+      else begin
+        let (buy_tree, sell_tree) = market_state in
+        match (search_price buy_tree price, search_price sell_tree price) with
+        | (None, None) -> 
+            Printf.printf "No orders exist at price %.2f\n" price;
+            interact_with_orderbook market_state order_id
+        | _ ->
+            let new_buy_tree = remove_node buy_tree price in
+            let new_sell_tree = remove_node sell_tree price in
+            let new_market_state = (new_buy_tree, new_sell_tree) in
+            Printf.printf "Removed all orders at price %.2f\n" price;
+            print_orderbook new_market_state;
+            interact_with_orderbook new_market_state order_id
+      end
+
+  | "4" ->
+      print_orderbook market_state;
+      interact_with_orderbook market_state order_id
+
+  | "5" ->
+      print_endline "Goodbye!"
+
+  | _ ->
+      print_endline "Invalid choice. Please try again.";
+      interact_with_orderbook market_state order_id
+
+(* Run *)
+let () =
+  let initial_state = (Empty, Empty) in
+  print_endline "\nWelcome to the Interactive Orderbook Engine!";
+  interact_with_orderbook initial_state 1
