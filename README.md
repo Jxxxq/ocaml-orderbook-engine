@@ -34,7 +34,14 @@ A high-performance order book implementation in OCaml using Red-Black Binary Sea
    ```bash
    opam install ocaml-lsp-server odoc ocamlformat utop
    ```
-
+4. Initialize OPAM environment: Windows
+   ```bash
+   opam-shell.bat
+   ```
+   macOS/Linux
+   ```bash
+   eval $(opam env)
+   ```
 ## Usage
 
 Build the project using dune:
