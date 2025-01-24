@@ -1,3 +1,5 @@
 (library
- (name ocaml_orderbook)
- (public_name ocaml_orderbook))
+ (name ocaml_orderbook_lib)
+ (public_name ocaml_orderbook.lib)
+ (modules Types Tree_operations Rb_tree Order_operations Execution Utils))
+

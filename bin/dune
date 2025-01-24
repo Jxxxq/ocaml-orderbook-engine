@@ -1,4 +1,5 @@
 (executable
- (public_name ocaml_orderbook)
  (name main)
- (libraries ocaml_orderbook))
+ (public_name ocaml_orderbook)
+ (modules Main)
+ (libraries ocaml_orderbook.lib))
